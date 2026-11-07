@@ -28,7 +28,9 @@ ai-video-prompt-skills/
 │   ├── SKILL.md                      角色定义 / 工作流 / 全部硬规矩
 │   ├── references/
 │   │   ├── template.md               三层骨架模板 + 运镜类型库（镜头参考）
-│   │   └── combat-handbook.md        【动作参考库】打斗提示词参考手册（45KB）
+│   │   ├── combat-handbook.md        【动作参考库】打斗提示词参考手册（45KB）
+│   │   ├── 表情参考库.md             【表情参考库】角色情绪/神态/微表情写法词表
+│   │   └── 镜头参考库.md             【镜头参考库】景别/画幅/运镜/机位全词表 + 实测机位参数
 │   └── scripts/
 │       ├── detect_combat.py          自动判定是否进打斗模式（命令行）
 │       └── sync_combat_handbook.py   从真源同步刷新 combat-handbook.md
@@ -56,6 +58,10 @@ ai-video-prompt-skills/
 | `manju-composition/references/构图大师.json` | 6KB | 电影构图全规则（场景/画幅/镜头/光影/材质/色彩/禁止项） | 构图 / 镜头参考 |
 | `manju-storyboard/references/分镜大师.json` | 6KB | 分镜导演全规则（景别/运镜/Seedance 结构/参考图优先级） | 分镜 / 镜头参考 |
 | `manju-color-palette/references/色卡参考图生成器.md` | 3KB | 色卡页生成规范（结构/视觉要求/禁止项） | 色彩参考 |
+| `ai-video-prompt-template/references/表情参考库.md` | 新增 | 七情词表 / 复杂矛盾情绪拆分 / 常态表情基线 / 微表情肌肉写法 / 与台词语序融合 / 多角色表情差 / 防崩坏 NEG | **表情参考库（新增）** |
+| `ai-video-prompt-template/references/镜头参考库.md` | 新增 | 景别7种 / 画幅 / 运镜全词表 / 镜头类型与视场角 / 构图 / 机位角度 / 实测机位参数(10m·35°·45°等) / 运镜写作铁律 | **镜头参考库（新增，原内嵌词库统一抽取）** |
+
+> 仓库当前共 **18 个文件**（4 个 SKILL.md + 7 个 references + 2 个 scripts + 4 个用法 README + 1 个顶层 README）。
 
 ### 关于「动作参考库 / 镜头参考库 / 表情参考库」的透明说明
 
@@ -63,8 +69,8 @@ ai-video-prompt-skills/
 
 - **动作参考库 ✅ 已包含**：就是 `ai-video-prompt-template/references/combat-handbook.md`（打斗提示词参考手册）。它规定了打击感五件套、环境破坏四段式、需求词→模块映射等，是 `ai-video-prompt-template` 在检测到打斗场面时自动加载的真源。配套还有 `detect_combat.py` 与 `sync_combat_handbook.py` 两个脚本。
   - ⚠️ 该手册还有一个**外部真源**：`F:\AI视频制作\outputs\打斗提示词参考手册_v1.md`。仓库内 `combat-handbook.md` 是它的自动生成副本。若要修改打斗规范，**改真源后用 `sync_combat_handbook.py` 重新生成**，不要手改仓库里的副本。
-- **镜头 / 运镜参考库 ✅ 已包含（内嵌，非独立文件）**：运镜类型库、常用机位词库、叙事节奏公式都写在 `ai-video-prompt-template/references/template.md` 和该技能的 `SKILL.md` 里；`manju-storyboard` 的景别/运镜/构图词库在 `分镜大师.json`。它们没有单独拆成「镜头参考库.md」，而是随模板 / 规则库一起分发。如果你希望我把这部分**单独抽成一份 `镜头参考库.md`**，告诉我即可。
-- **表情参考库 ❌ 本技能集未提供**：这 4 个技能里**没有独立的「表情参考库」文件**。角色表情（开心 / 悲伤 / 愤怒等）目前是在提示词中按「神态 / 微表情动词」内联描述的，没有专门的表情图库或表情词表。如果你需要，我可以**新建一份 `表情参考库.md`**（表情词表 + 与镜头/运镜的搭配建议）补进 `ai-video-prompt-template`。
+- **镜头 / 运镜参考库 ✅ 已包含（现已抽成独立文件）**：原先运镜类型库、常用机位词库、叙事节奏公式内嵌在 `template.md` 与 SKILL.md，`manju-storyboard` 的景别/运镜/构图词库在 `分镜大师.json`。现已**统一抽取并扩充**为独立的 [`镜头参考库.md`](./ai-video-prompt-template/references/镜头参考库.md)，并补入用户实测的真实机位参数（第三人称射击 10m/35°/45°、2.5D 斜俯视、割草 60° 俯视、视场角补救顺序等）与运镜写作铁律（四要素 vs 两要素、落幅、来袭方向锁、客观机位）。
+- **表情参考库 ✅ 已包含（本次新增）**：原 4 个技能没有独立的表情词表，现新建 [`表情参考库.md`](./ai-video-prompt-template/references/表情参考库.md)，提供基础七情可粘贴短语、复杂矛盾情绪拆分写法、常态表情基线（写进文字锁表）、微表情肌肉写法、与台词语序融合规则、多角色表情差、防崩坏 NEG 清单、表情强度分级。
 
 ---
 
