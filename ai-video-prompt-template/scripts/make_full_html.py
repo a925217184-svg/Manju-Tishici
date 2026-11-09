@@ -4,14 +4,17 @@
 把 v1.6 的 .md 直接转成【单个自包含 .html】：
 - 顶栏：标题 + 「复制全部」按钮（复制复制区，即第一个 fenced 块）
 - 复制区：原样可读，按窗口自适应换行
-- 核对区：轻量 markdown 渲染（##/### 标题、- 列表、段落），原样可读
+- 核对区：轻量 markdown 渲染（##/### 标题、- 列表、段落、带图资产表），原样可读
+- 核对区里的 ![资产名](相对路径) 参考图会被缩到最大宽 360px 后 base64 内联，
+  使整个 HTML 自包含、不依赖外部图片文件。
 目的：用户只要一个文件，既能逐行核错、又能一键复制，不必 md+html 分开。
 用法：
   python make_full_html.py <输入.md> -o <输出.html> --title 标题
 """
-import sys, re, html, argparse
+import sys, re, html, argparse, os, base64, io
 
 FENCE_RE = re.compile(r"```(?:[^\n]*)\n(.*?)```", re.S)
+IMG_RE = re.compile(r"^!\[(.*?)\]\((.*?)\)\s*$")
 
 def extract_copy_area(md: str) -> str:
     m = FENCE_RE.search(md)
@@ -27,7 +30,7 @@ def split_review(md: str) -> str:
     return md[m.end():].strip("\n")
 
 def light_md_to_html(text: str) -> str:
-    # 轻量转换：标题 / 列表 / 段落；其余按纯文本转义
+    # 轻量转换：标题 / 列表 / 图片 / 段落；其余按纯文本转义
     lines = text.split("\n")
     out = []
     i = 0
@@ -35,6 +38,13 @@ def light_md_to_html(text: str) -> str:
     while i < n:
         line = lines[i]
         if line.strip() == "":
+            i += 1
+            continue
+        # 图片（独立行）
+        im = IMG_RE.match(line.strip())
+        if im:
+            alt, path = im.group(1), im.group(2).strip()
+            out.append(f'<img class="asset" alt="{html.escape(alt, quote=True)}" src="{html.escape(path, quote=True)}">')
             i += 1
             continue
         # 标题
@@ -55,7 +65,7 @@ def light_md_to_html(text: str) -> str:
         # 段落（连续非空行）
         para = [line]
         i += 1
-        while i < n and lines[i].strip() != "" and not re.match(r"^#{1,4}\s+", lines[i]) and not re.match(r"^\s*[-*]\s+", lines[i]):
+        while i < n and lines[i].strip() != "" and not re.match(r"^#{1,4}\s+", lines[i]) and not re.match(r"^\s*[-*]\s+", lines[i]) and not IMG_RE.match(lines[i].strip()):
             para.append(lines[i])
             i += 1
         out.append("<p>" + inline(" ".join(para)) + "</p>")
@@ -66,6 +76,38 @@ def inline(s: str) -> str:
     s = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", s)
     s = re.sub(r"`(.+?)`", r"<code>\1</code>", s)
     return s
+
+def resize_b64(abspath: str, max_w: int = 360) -> str:
+    """读图、等比缩到 max_w 以内、返回 base64 data URI；失败返回原路径。"""
+    try:
+        from PIL import Image
+        with Image.open(abspath) as im:
+            im = im.convert("RGB")
+            w, h = im.size
+            if w > max_w:
+                im = im.resize((max_w, max(1, int(h * max_w / w))), Image.LANCZOS)
+            buf = io.BytesIO()
+            im.save(buf, format="PNG")
+            data = base64.b64encode(buf.getvalue()).decode("ascii")
+        return "data:image/png;base64," + data
+    except Exception:
+        return None
+
+def embed_images(review_html: str, base_dir: str) -> str:
+    """把 <img class="asset" src="相对路径"> 改为 base64 内联（找不到或失败则保留相对路径）。"""
+    def repl(m):
+        tag, alt, src = m.group(0), m.group(1), m.group(2)
+        if src.startswith("data:"):
+            return tag
+        ap = src
+        if not os.path.isabs(ap):
+            ap = os.path.normpath(os.path.join(base_dir, src))
+        if os.path.isfile(ap):
+            uri = resize_b64(ap)
+            if uri:
+                return f'<img class="asset" alt="{alt}" src="{uri}">'
+        return tag
+    return re.sub(r'<img class="asset" alt="([^"]*)" src="([^"]*)">', repl, review_html)
 
 TEMPLATE = """<!DOCTYPE html>
 <html lang="zh-CN">
@@ -97,6 +139,9 @@ TEMPLATE = """<!DOCTYPE html>
   .review ul {{ margin:6px 0; padding-left:22px; }}
   .review li {{ margin:4px 0; line-height:1.7; font-size:14px; }}
   .review code {{ background:#f0f1f3; padding:1px 5px; border-radius:4px; font-size:13px; }}
+  .review img.asset {{ display:block; max-width:300px; width:auto; height:auto; border:1px solid #e3e6ea;
+                       border-radius:8px; margin:8px 0 4px; background:#fafbfc; }}
+  .asset-cap {{ font-size:12px; color:#8a949e; margin:0 0 14px; }}
   .note {{ font-size:12px; color:#8a949e; margin-top:8px; }}
 </style>
 </head>
@@ -154,6 +199,8 @@ def main():
 
     review = split_review(md)
     review_html = light_md_to_html(review)
+    # 把核对区参考图 base64 内联（相对路径基于 md 所在目录）
+    review_html = embed_images(review_html, os.path.dirname(os.path.abspath(args.md)))
 
     out = TEMPLATE.format(
         title=args.title,
