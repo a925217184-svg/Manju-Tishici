@@ -77,19 +77,15 @@ def inline(s: str) -> str:
     s = re.sub(r"`(.+?)`", r"<code>\1</code>", s)
     return s
 
-def resize_b64(abspath: str, max_w: int = 360) -> str:
-    """读图、等比缩到 max_w 以内、返回 base64 data URI；失败返回原路径。"""
+def b64_original(abspath: str) -> str:
+    """原图字节直接 base64，不缩放、不转格式，保留用户给的原样。失败返回 None。"""
     try:
-        from PIL import Image
-        with Image.open(abspath) as im:
-            im = im.convert("RGB")
-            w, h = im.size
-            if w > max_w:
-                im = im.resize((max_w, max(1, int(h * max_w / w))), Image.LANCZOS)
-            buf = io.BytesIO()
-            im.save(buf, format="PNG")
-            data = base64.b64encode(buf.getvalue()).decode("ascii")
-        return "data:image/png;base64," + data
+        ext = os.path.splitext(abspath)[1].lower()
+        mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+                "gif": "image/gif", "webp": "image/webp"}.get(ext, "image/png")
+        with open(abspath, "rb") as f:
+            data = base64.b64encode(f.read()).decode("ascii")
+        return f"data:{mime};base64," + data
     except Exception:
         return None
 
@@ -103,7 +99,7 @@ def embed_images(review_html: str, base_dir: str) -> str:
         if not os.path.isabs(ap):
             ap = os.path.normpath(os.path.join(base_dir, src))
         if os.path.isfile(ap):
-            uri = resize_b64(ap)
+            uri = b64_original(ap)
             if uri:
                 return f'<img class="asset" alt="{alt}" src="{uri}">'
         return tag
@@ -139,7 +135,7 @@ TEMPLATE = """<!DOCTYPE html>
   .review ul {{ margin:6px 0; padding-left:22px; }}
   .review li {{ margin:4px 0; line-height:1.7; font-size:14px; }}
   .review code {{ background:#f0f1f3; padding:1px 5px; border-radius:4px; font-size:13px; }}
-  .review img.asset {{ display:block; max-width:300px; width:auto; height:auto; border:1px solid #e3e6ea;
+  .review img.asset {{ display:block; max-width:100%; width:auto; height:auto; border:1px solid #e3e6ea;
                        border-radius:8px; margin:8px 0 4px; background:#fafbfc; }}
   .asset-cap {{ font-size:12px; color:#8a949e; margin:0 0 14px; }}
   .note {{ font-size:12px; color:#8a949e; margin-top:8px; }}
